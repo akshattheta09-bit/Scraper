@@ -1,58 +1,104 @@
-import requests
-from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from selenium import webdriver
 from openpyxl import Workbook
+import argparse
+import sys
 
-# 1. Get the URL from the user
-url = input("Enter the URL to scrape (e.g., example.com): ")
-if not url.startswith('http'):
-    url = 'https://' + url
+def scrape(url):
+    print(f"Starting Scrapy for URL: {url}")
 
-print(f"\nScraping {url}...")
+    chrome_options = Options()   
 
-try:
-    # 2. Download the webpage
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    # 3. Create a new Excel file
     wb = Workbook()
     ws = wb.active
     ws.title = "Scraped Data"
-    ws.append(["Category", "Content"])
+    ws.append(["Category", "Content"]) 
+    
+    try:
+        driver = webdriver.Chrome(options=chrome_options)
+        
+        print(f"Navigating to {url}...")
+        driver.get(url)
+        
 
-    # 4. Scrape the Title
-    title = soup.title.string if soup.title else "No Title"
-    print(f"Title: {title}")
-    ws.append(["Title", title])
+        WebDriverWait(driver, 25).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        
 
-    # 5. Scrape Headings (H1)
-    print("\n--- Headings (H1) ---")
-    for tag in soup.find_all('h1'):
-        text = tag.get_text(strip=True)
-        print(f"- {text}")
-        ws.append(["Heading (H1)", text])
+        title = driver.title
+        print(f"Title: {title}\n")
+        ws.append(["Title", title])
+        
 
-    # 6. Scrape First 5 Paragraphs
-    print("\n--- First 5 Paragraphs ---")
-    for i, tag in enumerate(soup.find_all('p')[:5]):
-        text = tag.get_text(strip=True)
-        if text:
-            print(f"{i+1}. {text}")
-            ws.append([f"Paragraph {i+1}", text])
+        h1_tags = driver.find_elements(By.TAG_NAME, "h1")
+        if h1_tags:
+            for tag in h1_tags:
+                text = tag.text.strip()
+                print(f"- {text}")
+                ws.append(["H1 Heading", text])
+        else:
+            print("No H1 tags found.")
+            
+        p_tags = driver.find_elements(By.TAG_NAME, "p")
+        if p_tags:
+            for i, tag in enumerate(p_tags[:5]):
+                text = tag.text.strip()
+                if text:
+                    print(f"{i+1}. {text}")
+                    ws.append([f"Paragraph {i+1}", text])
+        else:
+            print("No paragraph found.")
+            
+        a_tags = driver.find_elements(By.TAG_NAME, "a")
+        if a_tags:
+            count = 0
+            for tag in a_tags:
+                if count >= 5:
+                    break
+                href = tag.get_attribute('href')
+                text = tag.text.strip()
+                if href and text:
+                    print(f"{count+1}. {text} -> {href}")
+                    ws.append([f"Link - {text}", href])
+                    count += 1
+        else:
+            print("No links found.")
+            
 
-    # 7. Scrape First 5 Links
-    print("\n--- First 5 Links ---")
-    for i, tag in enumerate(soup.find_all('a')[:5]):
-        href = tag.get('href', '')
-        text = tag.get_text(strip=True)
-        if text and href:
-            print(f"{i+1}. {text} -> {href}")
-            ws.append([f"Link {i+1}", f"{text} -> {href}"])
+        excel_filename = "scraped_data.xlsx"
+        wb.save(excel_filename)
+        print(f"\nSuccessfully saved to {excel_filename}")
 
-    # 8. Save the data
-    filename = "scraped_data.xlsx"
-    wb.save(filename)
-    print(f"\nSuccessfully saved to {filename}")
+    except Exception as e:
+        print(f"\nError: {e}")
+    finally:
+        if 'driver' in locals():
+            driver.quit()
+        print("\nScraping completed.")
 
-except Exception as e:
-    print(f"\nError: {e}")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Basic Scraper")
+    parser.add_argument("url", help="URL to scrape", nargs="?", default="")
+    args = parser.parse_args()
+    
+
+    url = args.url
+    if not url:
+        try:
+            url = input("Enter the URL :(e.g., https://example.com): ")
+        except KeyboardInterrupt:
+            print("\nExiting Scrapy.")
+            sys.exit(0)
+            
+    if url:
+
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = 'https://' + url
+        scrape(url)
+    else:
+        print("No URL provided.")
