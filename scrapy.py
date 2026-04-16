@@ -4,41 +4,40 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+# from selenium.webdriver.support import expected_conditions as EC
 from openpyxl import Workbook
 
 def scrape(url):
     print(f"Starting Scrapy (Selenium) for URL: {url}")
     
-    # Set up Chrome options for headless mode
+
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new") # Modern headless mode
+    chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
     
-    # Initialize Excel Workbook
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Scraped Data"
-    ws.append(["Category", "Content"]) # Header row
+    ws.append(["Category", "Content"]) 
     
     try:
-        # Initialize the driver (Selenium 4+ handles the driver executable automatically)
         driver = webdriver.Chrome(options=chrome_options)
         
         print(f"Navigating to {url}...")
         driver.get(url)
         
-        # Wait for the body tag
+
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
         
-        # Scrape basic data
+
         title = driver.title
-        print(f"Page Title: {title}\n")
-        ws.append(["Page Title", title])
+        print(f"Title: {title}\n")
+        ws.append(["Title", title])
         
         print(f"--- Headings (H1) ---")
         h1_tags = driver.find_elements(By.TAG_NAME, "h1")
@@ -77,36 +76,36 @@ def scrape(url):
         else:
             print("No links found.")
             
-        # Save to Excel
+
         excel_filename = "scraped_data.xlsx"
         wb.save(excel_filename)
-        print(f"\nSuccessfully saved scraped data to {excel_filename}")
+        print(f"\nSuccessfully saved to {excel_filename}")
 
     except Exception as e:
-        print(f"\nAn error occurred while scraping: {e}")
+        print(f"\nError: {e}")
     finally:
         if 'driver' in locals():
             driver.quit()
         print("\nScraping completed.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Basic Scraper named Scrapy using Selenium")
+    parser = argparse.ArgumentParser(description="Basic Scraper")
     parser.add_argument("url", help="URL to scrape", nargs="?", default="")
     args = parser.parse_args()
     
-    # Use URL from argument if provided, otherwise prompt the user
+
     url = args.url
     if not url:
         try:
-            url = input("Please enter the URL to scrape (e.g., https://example.com): ")
+            url = input("Enter the URL :(e.g., https://example.com): ")
         except KeyboardInterrupt:
             print("\nExiting Scrapy.")
             sys.exit(0)
             
     if url:
-        # Ensure url has scheme
+
         if not url.startswith('http://') and not url.startswith('https://'):
             url = 'https://' + url
         scrape(url)
     else:
-        print("No URL provided. Exiting.")
+        print("No URL provided.")
